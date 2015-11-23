@@ -1,4 +1,4 @@
-"use strict"; 
+"use strict";
 
 // q-doc Code Documentation Generator
 //  Javascript Query and Post-Processing
@@ -124,7 +124,11 @@ QDoc.postProcessDoc = function(docJson) {
             element.arguments = "[" + element.arguments.join(";") + "]";
         }
 
-        element.comments = element.comments.join(" ");
+        console.log(element.comments);
+        element.comments = element.comments.join("\n");
+        console.log(element.comments);
+        // element.comments = element.comments.slice(1;-1);
+        // console.log(element.comments);
         element.returns.description = S(element.returns.description).humanize();
 
         for(var tCount = 0; tCount < element.throws.length; tCount++) {

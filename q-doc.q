@@ -26,7 +26,7 @@
 
 	.qdoc.require `$"q-doc-config";
 	.qdoc.require `$"q-doc-generator";
-	.qdoc.require `$"q-doc-parser";
+	.qdoc.require `$"zeb-doc-parser";
 
 	.h.HTML:"html";
 	.h.tx[`jsn]:{ enlist .j.j x };
@@ -53,7 +53,9 @@
 	if["l"~first string .z.o;
 		:hsym first `$trim system "pwd";
 	];
-
+	if["m"~first string .z.o;
+		:hsym first `$trim system "pwd";
+	];
 	'"GetCwdNotImplementedException (",string[.z.o],")";
  };
 

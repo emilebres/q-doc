@@ -1,4 +1,4 @@
-// q-doc Code Documentation Generator
+
 //   Parser
 // Copyright (C) 2014 Jaskirat M.S. Rajasansir
 // License BSD, see LICENSE for details
@@ -20,6 +20,9 @@
 / Stores a mapping of function name and the file that it was parsed from
 .qdoc.parseTree.source:(!)."SS"$\:();
 
+/ Stores the namespace associated with the file if relevant
+.qdoc.parseTree.namespace:`;
+
 / Stores function arguments, keyed by the function name
 .qdoc.parseTree.arguments:(!)."S*"$\:();
 
@@ -33,6 +36,7 @@
 .qdoc.parser.tags:()!();
 .qdoc.parser.tags[enlist"@param"]:`.qdoc.parser.tag.param;
 .qdoc.parser.tags[enlist"@returns"]:`.qdoc.parser.tag.returns;
+.qdoc.parser.tags[enlist"@global"]:`.qdoc.parser.tag.global;
 .qdoc.parser.tags[enlist"@throws"]:`.qdoc.parser.tag.throws;
 .qdoc.parser.tags[enlist"@see"]:`.qdoc.parser.tag.see;
 
@@ -51,7 +55,7 @@
     .qdoc.parseTree.root:folderRoot;
 
     files:.util.tree folderRoot;
-    files@:where any files like/:("*.q";"*.k");
+    files@:where any files like/:enlist["*.q"];
     files:hsym each `symbol$files;
 
     .qdoc.parser.parse each files;
@@ -69,19 +73,32 @@
     .log.info "Generating q-doc parse tree for: ",string fileName;
 
     file:read0 fileName;
-    file@:where not in [;(" ";"\t";"}")] first each file;
+    file@:where or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"\\d ")] 3#'file];
 
-    funcSignatures:file where not "/"~/:first each file;
-    funcAndArgs:{ $[not "{["~2#x; :enlist`; :`$";" vs x where not any x in/:"{[]} "] } each (!). flip ({`$first x};last)@\:/:":" vs/:funcSignatures;
+    if[0=count[file];:1b];
+    posAndNs:enlist[-1]!enlist[`.];    / functions declared before a \d belongs to the global namespace
+    posAndNs,: (where in[;enlist["\\d "]] 3#' file)!(`$3 _' file where in[;enlist["\\d "]] 3#' file);
+    / see if we can use functions from parser.q and file.q to remove blanks, makes it more general
+    funcSignatures:file where and[or[like[;"*:{*"] each file;like[;"*: {*"] each file];not in[;enlist" * "] 3#' file];
+    trimFuncSignatures:{$[x like "*{[[]*";first[ss[x;"]"]]#x;first[ss[x;"{"]]#x]} each funcSignatures;  / trim the function signatures after the arguments to allow one-line functions
+
+    funcAndArgs:{ $[not["{["~2#x] and x like "*{[[]*"; :enlist`; :`$";" vs x where not any x in/:"{[]} "] } each (!). flip ({`$first x};last)@\:/:":" vs/:trimFuncSignatures;
+
+    posAndFunc:(where and[or[like[;"*:{*"] each file;like[;"*: {*"] each file];not in[;enlist" * "] 3#' file])!key[funcAndArgs];
+    posAndFunc: key[posAndFunc]!{ns:x@asc[key[x]]@last[where[z>asc[key[x]]]];$[(y[z] like ".z_*") or ns~`.;y[z];`$string[ns],".",string[y[z]]]} [posAndNs; posAndFunc] each key posAndFunc;  / prepend namespace as appropriate
+
+    funcAndArgs:value[posAndFunc]!value[funcAndArgs];   / change functions to fullname
 
     commentLines:(file?funcSignatures) - til each deltas file?funcSignatures;
+    commentLines:{y where "*"~/:first each trim each x@y} [file] each commentLines;
 
     / Deltas stops at 1 so first line of file gets ignored. If its a comment, manually add to list
-    if["/"~first first file;
-        commentLines:@[commentLines;0;,;0];
-    ];
+    / not relevant for zebulon
+    / if["/"~first first file;
+    /     commentLines:@[commentLines;0;,;0];
+    / ];
 
-    commentsDict:key[funcAndArgs]!trim over reverse each 1_/:file commentLines;
+    commentsDict:key[funcAndArgs]!trim over reverse each file commentLines;
     commentsDict:trim 1_/:/:commentsDict;
 
     tagDiscovery:{ key[.qdoc.parser.tags]!where each like[x;]@/:"*",/:key[.qdoc.parser.tags],\:"*" } each commentsDict;
@@ -136,7 +153,7 @@
 /  @returns (SymbolList) Functions that should be removed from the parsed results
 .qdoc.parser.postProcess:{[funcAndArgs;comments;tagComments]
     / Remove documented objects with any function to the left of the assignment
-    assignmentInFunc:key[funcAndArgs] where any each any each string[key funcAndArgs] in/:\:",@_:";
+    assignmentInFunc:key[funcAndArgs] where any each any each string[key funcAndArgs] in/:\:",@:";  / removed the _ because it didn't allow snake format for function names
 
     / Remove additions to dictionaries if no comments
     dictKeysNoComments:{ $[(any any string[x] in/:\:"[]") & (()~y); :x; :` ] }./:flip (key;value)@\:comments;
@@ -153,11 +170,12 @@
         :pDict;
     ];
 
-    paramSplit:1_/:" " vs/:params;
-    paramNames:"S"$paramSplit@\:0;
+    paramTrimmed:{x where not (x=" ") and (prev[x] in " ")} each params;
+    paramSplit:1_/:" " vs/:paramTrimmed;
+    paramNames:"S"$paramSplit@\:1;
     paramDescs:" " sv/:2_/:paramSplit;
 
-    paramTypes:paramSplit@\:1;
+    paramTypes:-1 _/: 1 _/: paramSplit@\:0;
     paramTypes:.qdoc.parser.typeParser[func;] each paramTypes;
 
     :pDict upsert flip (paramNames;paramTypes;paramDescs);
@@ -170,10 +188,30 @@
         :rDict;
     ];
 
-    returnSplit:1_" " vs first return;
+    returnTrimmed:{x where not (x=" ") and (prev[x] in " ")} first return;
+    returnSplit:1_" " vs returnTrimmed;
 
-    :key[rDict]!(.qdoc.parser.typeParser[func;returnSplit 0];" " sv 2_ returnSplit);
+    :key[rDict]!(.qdoc.parser.typeParser[func;-1 _ 1 _ returnSplit 0];" " sv 1 _ returnSplit);
  };
+
+ .qdoc.parser.tag.global:{[func;globals]
+   pDict:flip `name`types`description!"S**"$\:();
+
+    if[()~globals;
+        :pDict;
+    ];
+
+    globalTrimmed:{x where not (x=" ") and (prev[x] in " ")} each globals;
+    globalSplit:1_/:" " vs/:globalTrimmed;
+    globalNames:"S"$globalSplit@\:1;
+    globalDescs:" " sv/:2_/:globalSplit;
+
+    globalTypes:-1 _/: 1 _/: globalSplit@\:0;
+    globalTypes:.qdoc.parser.typeParser[func;] each globalTypes;
+
+    :pDict upsert flip (globalNames;globalTypes;globalDescs);
+ };
+
 
 .qdoc.parser.tag.throws:{[func;throws]
     tDict:flip `exception`description!"S*"$\:();
@@ -198,13 +236,14 @@
  };
 
 .qdoc.parser.typeParser:{[func;types]
-    types:"S"$"|" vs types where not any types in/:"()";
+    types:lower "S"$"|" vs types where not any types in/:"()";
 
-    if[not all types in key .qdoc.parser.types.input;
+    if[not all types in lower key .qdoc.parser.types.input;
         .log.warn "Unrecognised data type [ Function: ",string[func]," ] [ Unrecognised Types: ",.Q.s1[types except key .qdoc.parser.types]," ]";
     ];
 
-    :.qdoc.parser.types.output .qdoc.parser.types.input types;
+    / :.qdoc.parser.types.output .qdoc.parser.types.input types;
+    :types;
  };
 
 
