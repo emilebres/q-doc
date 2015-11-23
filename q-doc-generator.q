@@ -58,7 +58,7 @@
 / for rst (restructured Text) generation
 
  .qdoc.rst.genFunc:{[dfunc]
-    sign:".. py:method:: ",string[dfunc[`func]],"(",sv[", ";string[dfunc[`arguments]]],")";
+    sign:".. q:method:: ",string[dfunc[`func]],"(",sv[", ";string[dfunc[`arguments]]],")";
     descp:dfunc[`comments];
     params:raze {(":param " ,string[x[`name]], ": ",x[`description];":type ",string[x[`name]], ": ",sv[" or ";string[x[`types]]])} each dfunc[`param];
     dreturn:dfunc[`returns];
@@ -119,7 +119,7 @@
 .qdoc.rst.writeNamespace:{[docRoot; includePrivate; namespace]
     ns_label: $[count[label:.qdoc.rst.namespaces[namespace]];label;string[namespace]];
     res: ns_label, "\n", #[count[ns_label];"="],"\n\n";
-    res,: ".. py:namespace:: ",string[namespace],"\n\n";
+    res,: ".. q:namespace:: ",string[namespace],"\n\n";
     res,: raze "\n\t" ,/:raze .qdoc.rst.genNamespace[namespace; includePrivate];
     docFile: hsym `$docRoot,"/", (1 _ string[namespace]),".rst";
     docFile 0: enlist[res];
