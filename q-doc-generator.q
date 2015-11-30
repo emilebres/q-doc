@@ -70,9 +70,16 @@
     :output;
     };
 
+.qdoc.rst.genVar:{[dvar]
+    sign:".. q:attribute:: ",string[dvar[`variable]];
+    descp:dvar[`comments];
+    :(sign;"\n"),("\t| ",/:descp),enlist["\n"];
+    };
+
 .qdoc.rst.genFile:{[file; includePrivate]
     t: .qdoc.json.getQDocFor[file];
     res: .qdoc.rst.genFunc each t[`qdoc] where includePrivate or not d[`qdoc;`func] like "f.p.*";
+    res,: .qdoc.rst.genVar each t[`vars];
     :"" sv res;
     };
 
@@ -99,6 +106,9 @@
         comments:funcs#.qdoc.parseTree.comments;
         tags:funcs#.qdoc.parseTree.tags;
         args:funcs#.qdoc.parseTree.arguments;
+        nvars: key[.qdoc.parseTree.variables] where namespace={`$".",vs[".";string[x]]@1} each key .qdoc.parseTree.variables;
+        vars: nvars # .qdoc.parseTree.variables;
+        vars: ([] variable:key[vars];comments:value[vars]);
 
         doc:{[f;c;t;a]
             funcAndArgs:`func`arguments`comments!(f;a f;c f);
@@ -108,12 +118,14 @@
 
         }[;comments;tags;args] each funcs;
 
-        :enlist[`qdoc]!enlist doc;
+        :`qdoc`vars!(doc;vars);
      };
 
 .qdoc.rst.genNamespace:{[namespace; includePrivate]
     t: .qdoc.rst.getQDocFor[namespace];
-    : .qdoc.rst.genFunc each t[`qdoc] where includePrivate or not t[`qdoc;`func] like "*f.p.*";
+    funcs: .qdoc.rst.genFunc each t[`qdoc] where includePrivate or not t[`qdoc;`func] like "*f.p.*";
+    vars: .qdoc.rst.genVar each t[`vars];
+    : funcs, vars;
     };
 
 .qdoc.rst.writeNamespace:{[docRoot; includePrivate; namespace]

@@ -29,6 +29,9 @@
 / Stores the folder root where the q-doc parsing started from
 .qdoc.parseTree.root:`;
 
+/ Stores the variables and their comments
+.qdoc.parseTree.variables:(!)."S*"$\:();
+
 / Defines the supported tags to be parsed. The dictionary key is the string that should
 / be identified from the file and the value is the function that should be executed on
 / lines that match.
@@ -51,7 +54,6 @@
         .log.error "Folder does not exist! [ Folder: ",string[folderRoot]," ]";
         '"FolderDoesNotExistException (",string[folderRoot],")";
     ];
-
     .qdoc.parseTree.root:folderRoot;
 
     files:.util.tree folderRoot;
@@ -73,9 +75,23 @@
     .log.info "Generating q-doc parse tree for: ",string fileName;
 
     file:read0 fileName;
+
+    init_lines:();
+    beg_init: first where count each  {r:x ss "f.p.init:"} each file;
+    if [    not null beg_init;
+            end_init: -1 + first where not in [;(" ";"\t")] first each (1+beg_init) _ file;   / allows indentation by tab or by spaces
+            init_lines: end_init # (1 +beg_init) _ file;
+            init_lines:({$[first[x] in ("\t";" ");1 _ x;x]}/) each init_lines;
+            init_lines@: where not in [;("}";"/";"\\")] first each init_lines;
+        ];
+
     file@:where or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"\\d ")] 3#'file];
+    / file@:where or[or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"\\d ")] 3#'file];{[l]any {"*"~x} each l[2+l ss"/ "]} each file];
+
+    file: init_lines, file;
 
     if[0=count[file];:1b];
+
     posAndNs:enlist[-1]!enlist[`.];    / functions declared before a \d belongs to the global namespace
     posAndNs,: (where in[;enlist["\\d "]] 3#' file)!(`$3 _' file where in[;enlist["\\d "]] 3#' file);
     / see if we can use functions from parser.q and file.q to remove blanks, makes it more general
@@ -84,26 +100,32 @@
 
     funcAndArgs:{ $[not["{["~2#x] and x like "*{[[]*"; :enlist`; :`$";" vs x where not any x in/:"{[]} "] } each (!). flip ({`$first x};last)@\:/:":" vs/:trimFuncSignatures;
 
-    posAndFunc:(where and[or[like[;"*:{*"] each file;like[;"*: {*"] each file];not in[;enlist" * "] 3#' file])!key[funcAndArgs];
+
+    posAndFunc:(where in[;funcSignatures] each file)!key[funcAndArgs];
     posAndFunc: key[posAndFunc]!{ns:x@asc[key[x]]@last[where[z>asc[key[x]]]];$[(y[z] like ".z_*") or ns~`.;y[z];`$string[ns],".",string[y[z]]]} [posAndNs; posAndFunc] each key posAndFunc;  / prepend namespace as appropriate
 
     funcAndArgs:value[posAndFunc]!value[funcAndArgs];   / change functions to fullname
 
-    commentLines:(file?funcSignatures) - til each deltas file?funcSignatures;
+    varSignatures:(file where and[and[not like[;"*::*"] each file;or[like[;"*:*"] each file;like[;"*: *"] each file]];not in[;enlist" * "] 3#' file]) except funcSignatures;
+    trimVarSignatures:{`$first[ss[x;":"]]#x} each varSignatures;  / trim the function signatures after the arguments to allow one-line functions
+
+    if [    count varSignatures;
+            posAndVar:(where in[;varSignatures] each file)!trimVarSignatures;
+            posAndVar: key[posAndVar]!{ns:x@asc[key[x]]@last[where[z>asc[key[x]]]];$[(y[z] like ".z_*") or ns~`.;y[z];`$string[ns],".",string[y[z]]]} [posAndNs; posAndVar] each key posAndVar;  / prepend namespace as appropriate
+    ];
+
+    commentLines:(asc file?union[varSignatures;funcSignatures]) - til each deltas asc file?union[varSignatures;funcSignatures];
     commentLines:{y where "*"~/:first each trim each x@y} [file] each commentLines;
+    if["*"~first trim first file; commentLines:@[commentLines;0;,;0]];    / deltas stops at 1 so first line of file gets ignored. If its a comment, manually add to list
+    dCommentLines:({1+first x}each commentLines)!commentLines;
 
-    / Deltas stops at 1 so first line of file gets ignored. If its a comment, manually add to list
-    / not relevant for zebulon
-    / if["/"~first first file;
-    /     commentLines:@[commentLines;0;,;0];
-    / ];
 
-    commentsDict:key[funcAndArgs]!trim over reverse each file commentLines;
-    commentsDict:trim 1_/:/:commentsDict;
+    funcCommentsDict:value[posAndFunc]! trim file dCommentLines each key posAndFunc;
+    funcCommentsDict: trim 1_/:/: funcCommentsDict;
 
-    tagDiscovery:{ key[.qdoc.parser.tags]!where each like[x;]@/:"*",/:key[.qdoc.parser.tags],\:"*" } each commentsDict;
-    tagComments:commentsDict@'tagDiscovery;
-    comments:commentsDict@'(til each count each commentsDict) except' raze each tagDiscovery;
+    tagDiscovery:{ key[.qdoc.parser.tags]!where each like[x;]@/:"*",/:key[.qdoc.parser.tags],\:"*" } each funcCommentsDict;
+    tagComments:funcCommentsDict@'tagDiscovery;
+    comments:funcCommentsDict@'(til each count each funcCommentsDict) except' raze each tagDiscovery;
     comments:comments@'where each not "/"~/:/:first@/:/:comments;
 
     / Key of funcAndArgs / comments / tagComments are equal and must remain equal
@@ -119,13 +141,21 @@
 
     tagParseTree:raze .qdoc.parser.parseTags[;tagComments] each key tagComments;
 
+    variables:()!();
+    if[count posAndVar;
+        varCommentsDict:value[posAndVar]! trim file dCommentLines each key posAndVar;
+        variables: trim 1_/:/: varCommentsDict;   / remove the * at the beginning of the lines
+        ];
+
     .qdoc.parseTree.comments,:comments;
     .qdoc.parseTree.tags,:tagParseTree;
     .qdoc.parseTree.source,:key[funcAndArgs]!count[funcAndArgs]#fileName;
     .qdoc.parseTree.arguments,:funcAndArgs;
+    .qdoc.parseTree.variables,:variables;
 
     :1b;
  };
+
 
 / Extracts and parses the supported tags from the q-doc body.
 /  @param func Symbol The function name the documentation is currently being parsed for
