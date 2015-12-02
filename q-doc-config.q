@@ -96,7 +96,7 @@
 .qdoc.rst.namespaces[`.z_ipc]:"Inter process communication";
 .qdoc.rst.namespaces[`.z_failo]:"Fail over";
 .qdoc.rst.namespaces[`.z_sec]:"Security";
-.qdoc.rst.namespaces[`.z_stm]:"Local cache : engines)";
+.qdoc.rst.namespaces[`.z_stm]:"Local cache : engines";
 .qdoc.rst.namespaces[`.z_stm_mem]:"Global cache : shared memory";
 .qdoc.rst.namespaces[`.z_msg]:"Events and messages";
 .qdoc.rst.namespaces[`.z_trs]:"Transaction management";
@@ -111,13 +111,13 @@
 .qdoc.rst.namespaces[`.z_simul]:"Simulation management";
 .qdoc.rst.namespaces[`.z_trc]:"Traces and audits";
 .qdoc.rst.namespaces[`.z_util]:"Utilities";
-.qdoc.rst.namespaces[`.z_zp]:"IPC hook";
+.qdoc.rst.namespaces[`.z_zp]:"IPC hooks";
 .qdoc.rst.namespaces[`.z_parse]:"Parsing";
 .qdoc.rst.namespaces[`.z_trsf]:"Transformation management";
 .qdoc.rst.namespaces[`.z_seq]:"Sequence management";
 .qdoc.rst.namespaces[`.z_rdb]:"RDB and context management";
 .qdoc.rst.namespaces[`.z_db]:"Data file management";
-.qdoc.rst.namespaces[`.z_map]:"Mapping of data";
+.qdoc.rst.namespaces[`.z_map]:"Data mapping";
 .qdoc.rst.namespaces[`.z_err]:"Error management";
 .qdoc.rst.namespaces[`.z_que]:"Query factory";
 .qdoc.rst.namespaces[`.z_io]:"CSV and XML parsing";

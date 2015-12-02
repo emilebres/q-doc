@@ -79,10 +79,10 @@
     init_lines:();
     beg_init: first where count each  {r:x ss "f.p.init:"} each file;
     if [    not null beg_init;
-            end_init: -1 + first where not in [;(" ";"\t")] first each (1+beg_init) _ file;   / allows indentation by tab or by spaces
+            end_init: first where not in [;(" ";"\t")] first each (1+beg_init) _ file;   / allows indentation by tab or by spaces
             init_lines: end_init # (1 +beg_init) _ file;
             init_lines:({trim $[first[x] in ("\t";" ");1 _ x;x]}/) each init_lines; / trim removes spaces in case of indentation by spaces
-            init_lines@: where or[not in [;("}";"/";"\\")] first each init_lines;"/ *"~/: 3#'init_lines];
+            init_lines@: where or[not in [;("}";"/";"\\";" ")] first each init_lines;"/ *"~/: 3#'init_lines];
             init_lines:?["/ *"~/:3#'init_lines;1 _'init_lines;init_lines];
         ];
 
