@@ -125,11 +125,11 @@
     t: .qdoc.rst.getQDocFor[namespace];
     funcs: .qdoc.rst.genFunc each t[`qdoc] where includePrivate or not t[`qdoc;`func] like "*f.p.*";
     vars: .qdoc.rst.genVar each t[`vars];
-    : funcs, vars;
+    :funcs, vars;
     };
 
 .qdoc.rst.writeNamespace:{[docRoot; includePrivate; namespace]
-    ns_label: $[count[label:.qdoc.rst.namespaces[namespace]];label;string[namespace]];
+    ns_label: $[count[label:.qdoc.rst.namespaces[namespace]];label, " (",string[namespace],")";string[namespace]];
     res: ns_label, "\n", #[count[ns_label];"="],"\n\n";
     res,: ".. q:namespace:: ",string[namespace],"\n\n";
     res,: raze "\n\t" ,/:raze .qdoc.rst.genNamespace[namespace; includePrivate];

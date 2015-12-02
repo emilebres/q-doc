@@ -81,12 +81,13 @@
     if [    not null beg_init;
             end_init: -1 + first where not in [;(" ";"\t")] first each (1+beg_init) _ file;   / allows indentation by tab or by spaces
             init_lines: end_init # (1 +beg_init) _ file;
-            init_lines:({$[first[x] in ("\t";" ");1 _ x;x]}/) each init_lines;
-            init_lines@: where not in [;("}";"/";"\\")] first each init_lines;
+            init_lines:({trim $[first[x] in ("\t";" ");1 _ x;x]}/) each init_lines; / trim removes spaces in case of indentation by spaces
+            init_lines@: where or[not in [;("}";"/";"\\")] first each init_lines;"/ *"~/: 3#'init_lines];
+            init_lines:?["/ *"~/:3#'init_lines;1 _'init_lines;init_lines];
         ];
 
-    file@:where or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"\\d ")] 3#'file];
-    / file@:where or[or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"\\d ")] 3#'file];{[l]any {"*"~x} each l[2+l ss"/ "]} each file];
+    file@:where or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"/ *";"\\d ")] 3#'file];
+    if[count file;file:?["/ *"~/:3#'file;1 _'file;file]];
 
     file: init_lines, file;
 
@@ -117,7 +118,7 @@
     commentLines:(asc file?union[varSignatures;funcSignatures]) - til each deltas asc file?union[varSignatures;funcSignatures];
     commentLines:{y where "*"~/:first each trim each x@y} [file] each commentLines;
     if["*"~first trim first file; commentLines:@[commentLines;0;,;0]];    / deltas stops at 1 so first line of file gets ignored. If its a comment, manually add to list
-    dCommentLines:({1+first x}each commentLines)!commentLines;
+    dCommentLines:({1+first x}each commentLines)! reverse each commentLines;
 
 
     funcCommentsDict:value[posAndFunc]! trim file dCommentLines each key posAndFunc;
@@ -144,7 +145,7 @@
     variables:()!();
     if[count posAndVar;
         varCommentsDict:value[posAndVar]! trim file dCommentLines each key posAndVar;
-        variables: trim 1_/:/: varCommentsDict;   / remove the * at the beginning of the lines
+        variables: 1_/:/: varCommentsDict;   / remove the * at the beginning of the lines
         ];
 
     .qdoc.parseTree.comments,:comments;
