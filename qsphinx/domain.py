@@ -605,7 +605,7 @@ class QDomain(Domain):
     object_types = {
         'function':     ObjType(l_('function'),      'func', 'obj'),
         'data':         ObjType(l_('data'),          'data', 'obj'),
-        'class':        ObjType(l_('class'),         'class', 'exc', 'obj'),
+        'namespace':        ObjType(l_('class'),         'ns', 'exc', 'obj'),
         'exception':    ObjType(l_('exception'),     'exc', 'class', 'obj'),
         'method':       ObjType(l_('method'),        'meth', 'obj'),
         'classmethod':  ObjType(l_('class method'),  'meth', 'obj'),
@@ -632,7 +632,7 @@ class QDomain(Domain):
         'data':  QXRefRole(),
         'exc':   QXRefRole(),
         'func':  QXRefRole(fix_parens=True),
-        'namespace': QXRefRole(),
+        'ns': QXRefRole(),
         'const': QXRefRole(),
         'attr':  QXRefRole(),
         'meth':  QXRefRole(fix_parens=True),
@@ -737,14 +737,18 @@ class QDomain(Domain):
 
     def resolve_xref(self, env, fromdocname, builder,
                      type, target, node, contnode):
-        # if target in ["z_ipc.f.p.err_ipc_open","f.p.open_tcf"]:
-        #     print "resolving xref"
-        #     print node
         modname = node.get('q:module')
         clsname = node.get('q:namespace')
         searchmode = node.hasattr('refspecific') and 1 or 0
         matches = self.find_obj(env, modname, clsname, target,
                                 type, searchmode)
+        # if target == 'z_zp':
+        #     print "resolving xref for %s" %target
+        #     print searchmode
+        #     print type
+        #     print list(self.object_types)
+        #     print self.objtypes_for_role(type)
+        #     print matches
         if not matches:
             return None
         elif len(matches) > 1:
