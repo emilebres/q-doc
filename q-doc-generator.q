@@ -131,9 +131,10 @@
 .qdoc.rst.writeNamespace:{[docRoot; includePrivate; namespace]
     ns_label: $[count[label:.qdoc.rst.namespaces[namespace]];label, " (",string[namespace],")";string[namespace]];
     res: ns_label, "\n", #[count[ns_label];"="],"\n\n";
+    res,: "| ",sv["\n| ";.qdoc.parseTree.namespaces[namespace]],"\n\n";
     res,: ".. q:namespace:: ",string[namespace],"\n\n";
     res,: raze "\n\t" ,/:raze .qdoc.rst.genNamespace[namespace; includePrivate];
-    docFile: hsym `$docRoot,"/", (1 _ string[namespace]),".rst";
+    docFile: hsym `$string[docRoot],"/", (1 _ string[namespace]),".rst";
     docFile 0: enlist[res];
     };
 

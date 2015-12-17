@@ -32,6 +32,9 @@
 / Stores the variables and their comments
 .qdoc.parseTree.variables:(!)."S*"$\:();
 
+/ Stores the namespaces and their comments
+.qdoc.parseTree.namespaces:(!)."S*"$\:();
+
 / Defines the supported tags to be parsed. The dictionary key is the string that should
 / be identified from the file and the value is the function that should be executed on
 / lines that match.
@@ -74,22 +77,7 @@
 .qdoc.parser.parse:{[fileName]
     .log.info "Generating q-doc parse tree for: ",string fileName;
 
-    file:read0 fileName;
-
-    init_lines:();
-    beg_init: first where count each  {r:x ss "f.p.init:"} each file;
-    if [    not null beg_init;
-            end_init: first where not in [;(" ";"\t")] first each (1+beg_init) _ file;   / allows indentation by tab or by spaces
-            init_lines: end_init # (1 +beg_init) _ file;
-            init_lines:({trim $[first[x] in ("\t";" ");1 _ x;x]}/) each init_lines; / trim removes spaces in case of indentation by spaces
-            init_lines@: where or[not in [;("}";"/";"\\";" ")] first each init_lines;"/ *"~/: 3#'init_lines];
-            init_lines:?["/ *"~/:3#'init_lines;1 _'init_lines;init_lines];
-        ];
-
-    file@:where or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"/ *";"\\d ")] 3#'file];
-    if[count file;file:?["/ *"~/:3#'file;1 _'file;file]];
-
-    file: init_lines, file;
+    file: .qdoc.parser.trimFile[fileName];
 
     if[0=count[file];:1b];
 
@@ -147,16 +135,41 @@
         varCommentsDict:value[posAndVar]! trim file dCommentLines each key posAndVar;
         variables: 1_/:/: varCommentsDict;   / remove the * at the beginning of the lines
         ];
+    namespaces:()!();
+    if[count posAndNs;
+        nsCommentsDict: value[posAndNs]! trim file dCommentLines each  key posAndNs;
+        namespaces: 1_/:/: nsCommentsDict;   / remove the * at the beginning of the lines
+        namespaces: (key[namespaces] where `. = key[`namespaces]) _ namespaces;     / remove as many `. entries as there is in the dictionary
+        ];
 
     .qdoc.parseTree.comments,:comments;
     .qdoc.parseTree.tags,:tagParseTree;
     .qdoc.parseTree.source,:key[funcAndArgs]!count[funcAndArgs]#fileName;
     .qdoc.parseTree.arguments,:funcAndArgs;
     .qdoc.parseTree.variables,:variables;
+    .qdoc.parseTree.namespaces,: namespaces;
 
     :1b;
  };
 
+.qdoc.parser.trimFile:{[fileName]
+   file:read0 fileName;
+
+    init_lines:();
+    beg_init: first where count each  {r:x ss "f.p.init:"} each file;
+    if [    not null beg_init;
+            end_init: first where not in [;(" ";"\t")] first each (1+beg_init) _ file;   / allows indentation by tab or by spaces
+            init_lines: end_init # (1 +beg_init) _ file;
+            init_lines:({trim $[first[x] in ("\t";" ");1 _ x;x]}/) each init_lines; / trim removes spaces in case of indentation by spaces
+            init_lines@: where or[not in [;("}";"/";"\\";" ")] first each init_lines;"/ *"~/: 3#'init_lines];
+            init_lines:?["/ *"~/:3#'init_lines;1 _'init_lines;init_lines];
+        ];
+
+    file@:where or[not in [;(" ";"\t";"}";"/";"\\")] first each file;in[;(" * ";"/ *";"\\d ")] 3#'file];
+    if[count file;file:?["/ *"~/:3#'file;1 _'file;file]];
+
+    init_lines, file
+    };
 
 / Extracts and parses the supported tags from the q-doc body.
 /  @param func Symbol The function name the documentation is currently being parsed for
